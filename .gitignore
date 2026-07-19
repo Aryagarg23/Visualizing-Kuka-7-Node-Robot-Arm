@@ -1,0 +1,13 @@
+# Unity editor junk
+Logs/
+Library/
+Temp/
+obj/
+*.tmp
+
+# OS/editor junk
+.DS_Store
+__pycache__/
+node_modules/
+
+prototype/figures/

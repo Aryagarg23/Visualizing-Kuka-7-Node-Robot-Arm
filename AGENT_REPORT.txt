@@ -1,0 +1,6 @@
+DONE
+Rewrote README.md per SHARED.md spec: project name, hackathon line with both prizes, what it does, how it works (Unity/WebGL, Blender/RoboDK/Fusion360 modeling, CSV/MATLAB data, IK), prototype section, team with GitHub links (Kaaustaaub, Akhil), links, and the fixed "more hackathon builds" list.
+Built prototype/arm_ik_demo.py (planar 3-link arm, forward kinematics + CCD inverse kinematics on toy data) using only numpy + matplotlib and the garg-paper style; ran it with the specified venv/MPLCONFIGDIR and confirmed it exits 0.
+Verified both figures exist: prototype/figures/reachability_cloud.png and prototype/figures/joint_angle_traces.png (viewed both, titles state the question answered, colors/style match spec).
+Removed the tracked Logs/ directory (Unity editor build logs, pure junk) and added a .gitignore covering Unity/editor and OS junk; found no .DS_Store, __pycache__, or node_modules.
+Did not touch .git config, did not commit or push, did not add a license file; left all real source (Unity project, models, WebGL build) untouched.
