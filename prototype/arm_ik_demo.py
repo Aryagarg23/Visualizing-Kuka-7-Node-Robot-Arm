@@ -15,8 +15,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-plt.style.use("/home/arya/projects/hackathons/.style/garg-paper.mplstyle")
-
 LINK_LENGTHS = np.array([1.0, 0.8, 0.6])
 N_LINKS = len(LINK_LENGTHS)
 FIG_DIR = os.path.join(os.path.dirname(__file__), "figures")

@@ -20,16 +20,30 @@ The pipeline:
 - An inverse kinematics solver takes a target end-effector position and back-solves joint angles.
 - The whole thing is built to WebGL and hosted (see `index.html` and the build under `MILLION LINE CSHARP/`).
 
+## Preview the included build
+
+The prebuilt WebGL player is under `MILLION LINE CSHARP/`. From the repository root,
+start a local static server and open its index page:
+
+```sh
+python3 -m http.server 8000
+```
+
+Visit <http://localhost:8000/MILLION%20LINE%20CSHARP/>. The repository contains the
+Unity project settings and exported WebGL build, but not the Unity `Assets/` source
+tree, so the checked-in build can be previewed but not rebuilt from this checkout.
+
 I worked on the inverse kinematics and movement logic; [Alexander Van Bibber](https://www.linkedin.com/in/alexander-van-bibber/) handled 3D modeling and data processing.
 
 ## Prototype
 
 The real thing is Unity and C#. The prototype is neither: `prototype/arm_ik_demo.py` is a synthetic planar 3-link arm in Python that reruns the same two ideas at toy scale — forward kinematics, and inverse kinematics via cyclic coordinate descent (CCD), which rotates one joint at a time toward a target instead of solving a full Jacobian.
 
-Run it:
+Run it locally (Python 3 with Matplotlib and NumPy):
 
 ```
-MPLCONFIGDIR=/home/arya/projects/hackathons/.mplcache /home/arya/projects/hackathons/.venv/bin/python prototype/arm_ik_demo.py
+python3 -m pip install matplotlib numpy
+python3 prototype/arm_ik_demo.py
 ```
 
 It samples thousands of random joint configurations to trace out the arm's reachable workspace, then solves CCD for one target and plots the resulting pose on top:
