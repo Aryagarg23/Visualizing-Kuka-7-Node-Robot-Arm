@@ -1,29 +1,83 @@
-<!DOCTYPE html>
-<html>
-   <head>
-      <meta charset="utf-8">
-      <meta name="description" content="Hackathon project for visualizing a KUKA robot arm in Unity WebGL." />
-      <title>KUKA Arm Visualization</title>
-         
-      <style></style>
-   </head>
-   <body id="preview">
-      <h4>By: Akhil Penumudy, Arya Garg, Kaaustaaub Shankar, Alexander Van Bibber</h4>
-      <h1 class="code-line" data-line-start=0 data-line-end=1><a href = "https://simmer.io/@aryagarg23/kukavisualisation" id="Visualizing_the_Movements_of_Kuka_7_Node_Robot_Arm_through_Unity_and_C_Sharp_0"></a>Visualizing the Movements of Kuka 7 Node Robot Arm through Unity and C #</h1>
-      <h2 class="code-line" data-line-start=2 data-line-end=3><a id="Inspiration_2"></a>Inspiration</h2>
-      <p class="has-line-data" data-line-start="3" data-line-end="4">The inspiration for Visualizing Kuka 7 Node Robot Arm came from our interest in robotics and automation. We wanted to create a tool that could help engineers and researchers visualize the movements of a Kuka 7 Node Robot Arm. Coming into the hackathon, we wanted to do something related to that and we ended up running into Mitchell of Kinetic Vision who told us that there was a challenge relating to visualizing the movement of the robot.</p>
-      <h2 class="code-line" data-line-start=6 data-line-end=7><a id="What_it_does_6"></a>What It Does</h2>
-      <p class="has-line-data" data-line-start="7" data-line-end="8">Visualizing Kuka 7 Node Robot Arm is a web application hosted through WebGL that allows users to interactively visualize the movements of a Kuka 7 Node Robot Arm through the use of sliders. Users can adjust the angles of each joint and see how it affects the position of the end effector. The application also includes a variety of pre-built sequences that demonstrate the capabilities of the robot arm. The application is also able to interpret the CSV file provided by Kinetic Vision to create a moving visualization of the Kuka 7 Node Robot.</p>
-      <h2 class="code-line" data-line-start=9 data-line-end=10><a id="How_we_built_it_9"></a>How We Built It</h2>
-      <p class="has-line-data" data-line-start="11" data-line-end="12">We built this web application through primarily Unity since it is an amazing tool for modeling 3d objects that require physics and because it is easy to publish through WebGL. We also used AutoCad, RoboDK, Blender, and Fusion360 to create the 3d models in the form of obj files for the motors that make up the robotic arm.</p>
-      <h2 class="code-line" data-line-start=13 data-line-end=14><a id="Challenges_We_Faced_13"></a>Challenges We Faced</h2>
-      <p class="has-line-data" data-line-start="14" data-line-end="15">One of the biggest challenges we faced was getting the different parts of the robot arm to rotate with each other. This is because the location of one motor is relative to the one below it which caused some errors with rotating higher level motors. This was fixed through coding specific rotation scripts that would force the proper rotation. Another issue we had was with the 3d motors for each model not rendering correctly in Unity. An example of such an issue would be the center of the model and thus the rotation not being in the center of the actual mesh.</p>
-      <h2 class="code-line" data-line-start=15 data-line-end=16><a id="What_we_learned_15"></a>What We Learned</h2>
-      <p class="has-line-data" data-line-start="16" data-line-end="17">Something we learned today about was prioritizing work and not underestimating the process. We had a list of features we wanted to have accomplished by the end of the hackathon but we quickly realized that we had to drop some of the features to make sure that the more important features like the rendering and movement were correct. We also were overconfident going into this because the tasks early on the process were easy while the process of putting everything together was significantly more difficult</p>
-      <h2 class="code-line" data-line-start=17 data-line-end=18><a id="Accomplishments_that_were_proud_of_17"></a>Accomplishments</h2>
-      <p class="has-line-data" data-line-start="18" data-line-end="19">We’re proud of the realistic 3D visualization we were able to create using Unity. We are happy with the front end and we find it simplistic.</p>
-      <h2 class="code-line" data-line-start=20 data-line-end=21><a id="Whats_next_for_Visualizing_Kuka_7_Node_Robot_Arm_20"></a>What’s next for Visualizing Kuka 7 Node Robot Arm</h2>
-      <p class="has-line-data" data-line-start="21" data-line-end="22">In the future, we plan to add more advanced features to Visualizing Kuka 7 Node Robot Arm, such as support for multiple robot arms and the ability to save and load custom sequences. We also plan to add onto this by adding the feature of recording robotic movements and converting those movements into a CSV that can be used for the physical robot arm.</p>
-      <iframe src="https://i.simmer.io/@aryagarg23/kukavisualisation" style="width:960px;height:600px"></iframe>
-   </body>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KUKA LBR iiwa: recorded pick-and-place, joint control and reach</title>
+  <meta name="description" content="A KUKA LBR iiwa 7 R800 in the browser: play back Kinetic Vision's ten recorded pick-and-place runs with joint angle, velocity and torque, move each joint, or drag a target and let inverse kinematics reach it." />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <main class="app">
+    <section class="stage">
+      <canvas id="view" aria-label="Isometric view of the arm. Drag to turn the view, scroll to zoom, double-click to reset. In Reach mode, drag the orange target."></canvas>
+      <div class="readout" id="readout" aria-live="off"></div>
+      <div class="handle" id="handle" hidden></div>
+      <div class="view-buttons">
+        <button type="button" id="turn-left" title="Turn the view 90°">⟲</button>
+        <button type="button" id="iso" title="Back to the isometric view">ISO</button>
+        <button type="button" id="turn-right" title="Turn the view 90°">⟳</button>
+      </div>
+      <p class="loading" id="loading">Loading the arm…</p>
+    </section>
+
+    <aside class="panel">
+      <header>
+        <h1>KUKA LBR iiwa 7 R800</h1>
+        <p>Seven joints, the recorded runs from Kinetic Vision's RevolutionUC 2023 challenge.</p>
+      </header>
+
+      <div class="modes" role="tablist" aria-label="Mode">
+        <button type="button" role="tab" data-mode="recorded" aria-selected="true">Recorded</button>
+        <button type="button" role="tab" data-mode="joints" aria-selected="false">Joints</button>
+        <button type="button" role="tab" data-mode="reach" aria-selected="false">Reach</button>
+      </div>
+
+      <div class="mode-body" data-for="recorded">
+        <div class="row">
+          <label>Run <select id="run"></select></label>
+          <button type="button" id="play" class="solid">Pause</button>
+          <label>Speed <select id="speed">
+            <option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option>
+          </select></label>
+        </div>
+        <div class="row">
+          <input type="range" id="scrub" min="0" max="1" step="1" value="0" aria-label="Time in the run" />
+          <span id="clock" class="num"></span>
+        </div>
+      </div>
+      <div class="mode-body" data-for="joints" hidden>
+        <p class="hint">Drag a slider. Each joint turns everything above it.</p>
+        <div class="row"><button type="button" id="zero">All joints to zero</button><button type="button" id="from-run">Back to the run's pose</button></div>
+      </div>
+      <div class="mode-body" data-for="reach" hidden>
+        <p class="hint">Drag the orange target, or use the arrow keys (Page Up and Page Down for height). The tool stays pointing down; the solver starts from the current pose so the arm does not jump.</p>
+        <div class="row">
+          <label>Height <input type="range" id="target-z" min="50" max="1200" step="5" aria-label="Target height in millimetres" /></label>
+          <span id="target-z-out" class="num"></span>
+        </div>
+        <p id="reach-status" class="status" role="status"></p>
+      </div>
+
+      <table class="joints" aria-label="Joint state">
+        <thead><tr><th>Joint</th><th>Angle</th><th class="num">°</th><th class="num">°/s</th><th class="num">N·m</th></tr></thead>
+        <tbody id="joint-rows"></tbody>
+      </table>
+
+      <figure class="torque" id="torque-figure">
+        <figcaption>Torque over the run. Click to jump.</figcaption>
+        <canvas id="torque"></canvas>
+      </figure>
+
+      <p class="note" id="note"></p>
+
+      <footer>
+        Data: Polydoros &amp; Nalpantidis, KUKA forward-dynamics set, as handed out by Kinetic Vision. Meshes: the LBR iiwa 7 R800 models from the same challenge.
+        Built at RevolutionUC 2023 by Arya Garg, Alexander Van Bibber, Kaaustaaub Shankar and Akhil Penumudy; rebuilt for the browser in 2026.
+        <a href="https://github.com/Aryagarg23/Visualizing-Kuka-7-Node-Robot-Arm" target="_blank" rel="noopener">Source</a>
+      </footer>
+    </aside>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
 </html>

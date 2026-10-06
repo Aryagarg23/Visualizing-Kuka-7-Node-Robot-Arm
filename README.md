@@ -1,63 +1,62 @@
 # Kuka Arm Viz
 
-An interactive WebGL visualization of a Kuka 7-node robot arm, with sliders per joint and inverse kinematics for reaching a target position.
+A KUKA LBR iiwa 7 R800 in the browser. Play back Kinetic Vision's ten recorded pick-and-place runs with each joint's angle, velocity and torque, turn the joints by hand, or drag a target and let inverse kinematics reach it.
 
-Built in 36-ish hours at RevolutionUC (February 2023). Won the Robotic Data Visualization award (Kinetic Vision) and Best Domain Name (Domain.com/MLH), for `howardgotinastickysituationwithspacearm.tech`.
+Built in 36-ish hours at RevolutionUC (February 2023). Won the Robotic Data Visualization award (Kinetic Vision) and Best Domain Name (Domain.com/MLH), for `howardgotinastickysituationwithspacearm.tech`. Rebuilt in 2026 as a plain web page.
+
+Live: https://aryagarg23.com/play/kuka-arm
+
+## The challenge
+
+Kinetic Vision asked for a way to see the rotational position, rotational velocity and torque of a 7-joint arm, using a public dataset of a KUKA arm doing ten pick-and-place runs, sampled at 100 Hz ([source/KV_Challenge.pdf](source/KV_Challenge.pdf)).
 
 ## What it does
 
-Kinetic Vision brought a challenge to the hackathon: take their Kuka 7-node arm data and make it visible. We built a Unity scene where each of the seven joints has its own slider, and moving one updates the end effector position in real time. The arm also reads the CSV and MATLAB data Kinetic Vision gave us directly, so you can play back their recorded motion instead of only hand-driving it with sliders.
+- **Recorded.** Pick a run and play it. The table shows every joint's angle, velocity and torque; each link is shaded by how hard its joint is working, against the largest torque that joint sees in all ten runs. A chart under the table shows all seven torques over the run; click it to jump. The flange's path is drawn in the scene and fills in as the run plays.
+- **Joints.** Drag a slider and that joint turns, carrying everything above it.
+- **Reach.** Drag the orange target (or use the arrow keys, Page Up and Page Down). The solver finds joint angles that put the flange there with the tool pointing down, starting from the current pose so the arm moves the least it can instead of jumping to a different pose that reaches the same point.
 
-On top of manual control, there are pre-built movement sequences, and inverse kinematics so you can just specify where you want the end effector to go and let the arm solve for the joint angles.
+The view is an orthographic isometric drawing: flat surfaces, inked edges and silhouettes, dash-dot joint axes, and drop lines to the floor so heights read without perspective. Drag to turn it, scroll to zoom, double-click to go back to the isometric view.
 
 ## How it works
 
-The arm is a Unity scene compiled to WebGL. Each of the 7 joint meshes was modeled separately, in Blender, Fusion360, and RoboDK, then exported as `.obj` files (see `BlenderObjects/` and `Kuka_obj_files/`) and rigged so each node's rotation is relative to the node below it. Getting that parent-child rotation chain correct, so rotating a shoulder joint doesn't silently break the wrist below it, was most of the actual engineering.
+- `source/` holds the inputs from the hackathon: the eight iiwa meshes Kinetic Vision supplied (base and links 1 to 7, in tenths of a millimetre, arm straight up), `KukaDirectDynamics.mat` from the [dataset Kinetic Vision pointed to](https://bitbucket.org/athapoly/datasets/src/master/), and the challenge brief.
+- `scripts/build_data.py` turns them into the two files the page loads: `public/data/iiwa7-links.bin` (285 KB) and `public/data/kuka-trajectories.bin` (843 KB). The recorded velocities are exactly the position step times 100 Hz, so the file leaves them out and the page derives them; the script checks that before it drops them. It also drops four stray triangles in the link 7 mesh that sit about 30 cm below the flange.
+- `src/kinematics.js` is the arm: joint axes and signs from KUKA's own robot description, forward kinematics, and damped least-squares inverse kinematics on all seven joints (three rows for position, two for tool tilt).
+- `src/scene.js` draws it with three.js; `src/main.js` is the page.
 
-The pipeline:
-- Kinetic Vision's CSV/MATLAB joint data (`Kuka_obj_files/BaxterDirectDynamics.mat`) gets parsed and replayed as a moving sequence.
-- Slider input drives per-joint rotation scripts directly, for manual control.
-- An inverse kinematics solver takes a target end-effector position and back-solves joint angles.
-- The whole thing is built to WebGL and hosted (see `index.html` and the build under `MILLION LINE CSHARP/`).
+The 2023 version was a Unity project compiled to WebGL (a 29 MB download), with the joint chain held together by hand-written rotation scripts. That project, its build and the Blender exports are gone from this branch; they are in the git history.
 
-## Preview the included build
-
-The prebuilt WebGL player is under `MILLION LINE CSHARP/`. From the repository root,
-start a local static server and open its index page:
+## Run it
 
 ```sh
-python3 -m http.server 8000
+npm install
+npm run dev        # http://localhost:5173
+npm test           # data and kinematics tests
+npm run build      # static site in dist/
 ```
 
-Visit <http://localhost:8000/MILLION%20LINE%20CSHARP/>. The repository contains the
-Unity project settings and exported WebGL build, but not the Unity `Assets/` source
-tree, so the checked-in build can be previewed but not rebuilt from this checkout.
+`npm run data` rebuilds the data files from `source/` (Python 3 with NumPy and SciPy).
 
-I worked on the inverse kinematics and movement logic; [Alexander Van Bibber](https://www.linkedin.com/in/alexander-van-bibber/) handled 3D modeling and data processing.
+## What the tests hold
 
-## Prototype
+- The data files decode to the `.mat` values: positions to 1e-6 rad, derived velocities to 1e-4 rad/s, torques exactly.
+- Every joint sits where its two meshes meet.
+- With these joint signs, the recordings hold the tool near straight down (median 9° to 17° per run); with joint 4 flipped they would point it up (over 140°). That is how the signs were checked.
+- Inverse kinematics reaches 807 flange positions taken from the recordings to within 0.05 mm, inside the joint limits.
+- Following run 1's path at 100 Hz, the solver's largest joint step is under three times the robot's own largest step. That is what starting from the current pose buys.
 
-The real thing is Unity and C#. The prototype is neither: `prototype/arm_ik_demo.py` is a synthetic planar 3-link arm in Python that reruns the same two ideas at toy scale — forward kinematics, and inverse kinematics via cyclic coordinate descent (CCD), which rotates one joint at a time toward a target instead of solving a full Jacobian.
+## Still open
 
-Run it locally (Python 3 with Matplotlib and NumPy):
-
-```
-python3 -m pip install matplotlib numpy
-python3 prototype/arm_ik_demo.py
-```
-
-It samples thousands of random joint configurations to trace out the arm's reachable workspace, then solves CCD for one target and plots the resulting pose on top:
-
-![Reachability cloud with one IK solution pose](https://vircgxpcwyvniemqmdyi.supabase.co/storage/v1/object/public/media/writing/Visualizing-Kuka-7-Node-Robot-Arm/reachability_cloud.png)
-
-It also plots each joint's angle across CCD iterations, showing the solver converge to zero end-effector error:
-
-![Joint angle traces converging over CCD iterations](https://vircgxpcwyvniemqmdyi.supabase.co/storage/v1/object/public/media/writing/Visualizing-Kuka-7-Node-Robot-Arm/joint_angle_traces.png)
+- No torque in Joints and Reach modes: the page has no dynamics model, only the recordings.
+- Reach only asks for the tool to point down. It does not choose how the tool turns about its own axis, or use the arm's spare motion for anything.
+- The dataset's readme calls the arm a "Kuka LWR"; the brief and the meshes are the LBR iiwa 7 R800. The page uses the iiwa's dimensions and limits.
+- No collision checks: the arm can pass through itself or the floor.
 
 ## Team
 
-- Arya Garg — inverse kinematics and movement logic
-- Alexander Van Bibber — 3D modeling and data processing
+- Arya Garg: inverse kinematics and movement logic
+- Alexander Van Bibber: 3D modeling and data processing
 - [Kaaustaaub Shankar](https://github.com/KaaustaaubShankar)
 - [Akhil Penumudy](https://github.com/akhilpenumudy)
 
@@ -66,7 +65,7 @@ Originally hacked together in [KaaustaaubShankar/Visualizing-Kuka-7-Node-Robot-A
 ## Links
 
 - [Devpost project page](https://devpost.com/software/visualizing-kuka-7-node-robot-arm)
-- [Live demo](https://simmer.io/@aryagarg23/kukavisualisation)
+- [The original Unity build (2023)](https://simmer.io/@aryagarg23/kukavisualisation)
 - Writeup: https://aryagarg23.com/writing/kuka-arm-viz
 - [aryagarg23.com](https://aryagarg23.com)
 - [Devpost profile](https://devpost.com/Aryagarg23)
