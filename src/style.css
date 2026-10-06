@@ -7,8 +7,10 @@
   --hot: #e05a2b;
   color-scheme: light;
 }
+/* Dark when the system is dark, unless the page that embeds this asks for a
+   theme with ?theme=light or ?theme=dark (main.js sets data-theme). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --paper: #1c1c1c;
     --surface: #262524;
     --ink: #ece6dc;
@@ -17,6 +19,15 @@
     --hot: #e8693f;
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --paper: #1c1c1c;
+  --surface: #262524;
+  --ink: #ece6dc;
+  --muted: #a59d90;
+  --rule: #5a5753;
+  --hot: #e8693f;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; border-radius: 0; }

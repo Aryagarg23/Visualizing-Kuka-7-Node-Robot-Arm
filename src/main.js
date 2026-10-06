@@ -3,6 +3,8 @@ import { decodeLinks, decodeRuns, peaks, row } from './data.js';
 import { createScene, palette } from './scene.js';
 
 const $ = id => document.getElementById(id);
+const theme = new URLSearchParams(location.search).get('theme');
+if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
 const canvas = $('view');
 const fmt = (v, d = 1) => (v < 0 ? '−' : ' ') + Math.abs(v).toFixed(d);
 

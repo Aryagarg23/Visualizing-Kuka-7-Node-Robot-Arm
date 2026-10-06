@@ -16,7 +16,7 @@ Kinetic Vision asked for a way to see the rotational position, rotational veloci
 - **Joints.** Drag a slider and that joint turns, carrying everything above it.
 - **Reach.** Drag the orange target (or use the arrow keys, Page Up and Page Down). The solver finds joint angles that put the flange there with the tool pointing down, starting from the current pose so the arm moves the least it can instead of jumping to a different pose that reaches the same point.
 
-The view is an orthographic isometric drawing: flat surfaces, inked edges and silhouettes, dash-dot joint axes, and drop lines to the floor so heights read without perspective. Drag to turn it, scroll to zoom, double-click to go back to the isometric view.
+The view is an orthographic isometric drawing: flat surfaces, inked edges and silhouettes, dash-dot joint axes, and drop lines to the floor so heights read without perspective. Drag to turn it, scroll to zoom, double-click to go back to the isometric view. It follows the system's light or dark setting; a page that embeds it can pick one with `?theme=light` or `?theme=dark`.
 
 ## How it works
 

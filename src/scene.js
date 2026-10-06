@@ -13,7 +13,8 @@ const EDGE_ANGLE = 28; // degrees between faces before an edge is inked
 const OUTLINE_MM = 2.2; // silhouette: back faces pushed out this far, drawn in ink
 
 export function palette() {
-  const dark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  const asked = document.documentElement.dataset.theme;
+  const dark = asked ? asked === 'dark' : window.matchMedia?.('(prefers-color-scheme: dark)').matches;
   return dark
     ? { paper: '#1c1c1c', surface: '#57534d', ink: '#ece6dc', rule: '#5a5753', hot: '#e8693f' }
     : { paper: '#e9e1d2', surface: '#f4efe6', ink: '#2a2418', rule: '#b9ab92', hot: '#e05a2b' };
