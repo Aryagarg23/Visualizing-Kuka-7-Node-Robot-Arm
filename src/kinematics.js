@@ -126,19 +126,19 @@ const TILT_MM = 400;
 const DAMPING = 8; // damped least squares, mm
 const MAX_STEP_MM = 60; // per iteration, so a far target is approached, not leapt at
 
-/**
- * Inverse kinematics: joint angles that put the flange at `target` (mm) with
- * the tool pointing along `toolDir` (default straight down, as in the
- * recordings), starting from `q0`.
- *
- * Damped least squares on the 7 joints: 3 rows for position and 2 for tool
- * tilt, since turning about the tool's own axis does not matter here. That
- * leaves two spare joints, and starting from the current pose and taking
- * the smallest step that closes the error is what keeps the arm from
- * jumping to another of the many poses that reach the same point. The
- * article's planar sketch was about exactly that choice.
- */
-export function solveIk(target, q0, { toolDir = [0, 0, -1], iterations = 200, tolerance = 0.05 } = {}) {
+// Joints closer to a limit than this share of their range are eased back
+// toward the middle with the arm's spare motion (which does not move the
+// flange), so they are rarely pinned in the first place.
+const LIMIT_MARGIN = 0.8;
+const LIMIT_PUSH = 0.03; // rad per iteration at the limit itself
+
+// One damped least-squares solve from q0, aware of the joint limits:
+// - a joint sitting on a limit whose step would push it further out is
+//   locked for that step and the rest are solved without it. Clamping it
+//   instead (as the first version did) wasted the step, and the solve
+//   stalled a few millimetres short with joint 6 pinned;
+// - near a limit, the null-space motion eases the joint back.
+function descend(target, q0, toolDir, iterations, tolerance) {
   let q = clampToLimits(q0);
   let best = null;
   for (let it = 0; it < iterations; it++) {
@@ -162,20 +162,91 @@ export function solveIk(target, q0, { toolDir = [0, 0, -1], iterations = 200, to
     const u = norm(cross(t, [1, 0, 0])) > 0.1 ? cross(t, [1, 0, 0]) : cross(t, [0, 1, 0]);
     const uN = u.map(v => v / norm(u));
     const vN = cross(t, uN);
-    const J = [[], [], [], [], []];
+    const full = [[], [], [], [], []];
     for (let i = 0; i < 7; i++) {
       const lin = cross(f.axes[i], sub(f.position, f.points[i]));
-      J[0].push(lin[0]); J[1].push(lin[1]); J[2].push(lin[2]);
-      J[3].push(dot(f.axes[i], uN) * TILT_MM);
-      J[4].push(dot(f.axes[i], vN) * TILT_MM);
+      full[0].push(lin[0]); full[1].push(lin[1]); full[2].push(lin[2]);
+      full[3].push(dot(f.axes[i], uN) * TILT_MM);
+      full[4].push(dot(f.axes[i], vN) * TILT_MM);
     }
     const e = [ep[0], ep[1], ep[2], dot(eo, uN), dot(eo, vN)];
-    // dq = J^T (J J^T + λ² I)^-1 e
-    const JJt = J.map((ri, a) => J.map((rj, b) => ri.reduce((s, v, k) => s + v * rj[k], 0) + (a === b ? DAMPING * DAMPING : 0)));
-    const y = solve(JJt, e);
-    const dq = q.map((_, k) => J.reduce((s, row, a) => s + row[k] * y[a], 0));
+    // Ease joints near a limit back toward the middle.
+    const z = q.map((v, k) => {
+      const over = Math.abs(v) / LIMITS[k] - LIMIT_MARGIN;
+      return over > 0 ? -Math.sign(v) * LIMIT_PUSH * (over / (1 - LIMIT_MARGIN)) ** 2 : 0;
+    });
+
+    const locked = new Array(7).fill(false);
+    let dq;
+    for (let pass = 0; pass < 7; pass++) {
+      const J = full.map(row => row.map((v, k) => (locked[k] ? 0 : v)));
+      // J+ = J^T (J J^T + λ² I)^-1;  dq = J+ e + (I - J+ J) z
+      const JJt = J.map((ri, a) => J.map((rj, b) => ri.reduce((s, v, k) => s + v * rj[k], 0) + (a === b ? DAMPING * DAMPING : 0)));
+      const pinv = vec => { const y = solve(JJt, vec); return q.map((_, k) => J.reduce((s, row, a) => s + row[k] * y[a], 0)); };
+      const zFree = z.map((v, k) => (locked[k] ? 0 : v));
+      const Jz = J.map(row => row.reduce((s, v, k) => s + v * zFree[k], 0));
+      const primary = pinv(e), back = pinv(Jz);
+      dq = q.map((_, k) => (locked[k] ? 0 : primary[k] + zFree[k] - back[k]));
+      let changed = false;
+      q.forEach((v, k) => {
+        if (!locked[k] && Math.abs(v + dq[k]) > LIMITS[k] && Math.abs(v) >= LIMITS[k] - 1e-9 && Math.sign(dq[k]) === Math.sign(v)) {
+          locked[k] = true;
+          changed = true;
+        }
+      });
+      if (!changed) break;
+    }
     q = clampToLimits(q.map((v, k) => v + dq[k]));
   }
-  const reached = best.ePos < 0.5 && best.tilt < 0.5 * DEG;
-  return { q: best.q, reached, positionError: best.ePos, tiltError: best.tilt, iterations: best.iterations };
+  return best;
+}
+
+// Where to start again when the solve from the current pose cannot get
+// there: the current pose with one wrist or elbow joint swung to the other
+// side, then a few plain poses. Deterministic, so a target always gives the
+// same answer from the same pose.
+const RESTARTS = [
+  [0, 30, 0, -60, 0, 60, 0],
+  [0, -30, 0, 60, 0, -60, 0],
+  [90, 30, 0, -90, 0, 60, 0],
+  [-90, 30, 0, -90, 0, 60, 0],
+  [0, 60, 0, -30, 0, 90, 0],
+].map(q => q.map(v => v * DEG));
+
+/**
+ * Inverse kinematics: joint angles that put the flange at `target` (mm) with
+ * the tool pointing along `toolDir` (default straight down, as in the
+ * recordings), starting from `q0`.
+ *
+ * Damped least squares on the 7 joints: 3 rows for position and 2 for tool
+ * tilt, since turning about the tool's own axis does not matter here. That
+ * leaves two spare joints, and starting from the current pose and taking
+ * the smallest step that closes the error is what keeps the arm from
+ * jumping to another of the many poses that reach the same point. The
+ * article's planar sketch was about exactly that choice.
+ *
+ * When that solve ends against a joint limit short of a target the arm can
+ * reach, it starts again from other poses and keeps the reaching pose
+ * closest to where the arm was: a jump, but to the target.
+ */
+export function solveIk(target, q0, { toolDir = [0, 0, -1], iterations = 200, tolerance = 0.05 } = {}) {
+  const done = b => b.ePos < 0.5 && b.tilt < 0.5 * DEG;
+  let best = descend(target, q0, toolDir, iterations, tolerance);
+  let restarted = false;
+  if (!done(best)) {
+    const seeds = [
+      ...q0.map((v, k) => (k % 2 === 1 ? q0.map((w, j) => (j === k ? -w : w)) : null)).filter(Boolean),
+      ...RESTARTS,
+    ];
+    let pick = null;
+    for (const seed of seeds) {
+      const b = descend(target, seed, toolDir, iterations, tolerance);
+      if (done(b)) {
+        const d = b.q.reduce((s, v, k) => s + Math.abs(v - q0[k]), 0);
+        if (!pick || d < pick.d) pick = { b, d };
+      } else if (b.score < best.score && !pick) best = b;
+    }
+    if (pick) { best = pick.b; restarted = true; }
+  }
+  return { q: best.q, reached: done(best), restarted, positionError: best.ePos, tiltError: best.tilt, iterations: best.iterations };
 }

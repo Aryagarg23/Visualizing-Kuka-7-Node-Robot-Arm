@@ -255,7 +255,7 @@ function update() {
     const s = state.reach, el = $('reach-status');
     el.classList.toggle('miss', !!s && !s.reached);
     el.textContent = !s ? 'Target on the flange. Move it.'
-      : s.reached ? `Reached. Tool ${(s.tiltError / DEG).toFixed(2)}° off vertical.`
+      : s.reached ? `Reached${s.restarted ? ' by swinging to another pose' : ''}. Tool ${(s.tiltError / DEG).toFixed(2)}° off vertical.`
       : `Out of reach: the flange stops ${s.positionError.toFixed(0)} mm short.`;
   }
 }

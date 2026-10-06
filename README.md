@@ -45,6 +45,7 @@ npm run build      # static site in dist/
 - With these joint signs, the recordings hold the tool near straight down (median 9° to 17° per run); with joint 4 flipped they would point it up (over 140°). That is how the signs were checked.
 - Inverse kinematics reaches 807 flange positions taken from the recordings to within 0.05 mm, inside the joint limits.
 - Following run 1's path at 100 Hz, the solver's largest joint step is under three times the robot's own largest step. That is what starting from the current pose buys.
+- Started with joint 2, 4 or 6 pinned on a limit, it still reaches all 2442 recorded positions tried. Clamping at the limit instead missed 149 of them, which is how dragging used to stop a few millimetres short.
 
 ## Still open
 
