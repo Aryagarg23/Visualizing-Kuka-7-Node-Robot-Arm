@@ -93,3 +93,30 @@ test('a target out of reach is reported, and the pose stays inside the limits', 
   s.q.forEach((v, k) => assert.ok(Math.abs(v) <= LIMITS[k] + 1e-12));
   assert.ok(s.positionError > 100);
 });
+
+// Why the solver handles joint limits, not just clamps to them: dragging the
+// target, the arm would end a few millimetres short of points it can reach,
+// with joint 6 pinned at 120°. Starting from recorded poses with joint 2, 4
+// or 6 forced onto a limit, the clamping solver missed 149 of these 2442.
+// Locking the pinned joint and easing joints off their limits gets most of
+// them; the rest need a restart from another pose (counted below).
+test('starting with a joint pinned on its limit, IK still reaches the recorded positions', () => {
+  let n = 0, restarted = 0;
+  for (const r of runs) {
+    for (let i = 0; i < r.length; i += 50) {
+      const q = row(r.position, i);
+      const target = forward(q).position;
+      for (const k of [1, 3, 5]) {
+        for (const side of [1, -1]) {
+          const seed = q.slice();
+          seed[k] = side * LIMITS[k];
+          const s = solveIk(target, seed);
+          assert.ok(s.reached, `run sample ${i}, joint ${k + 1} at ${side > 0 ? '+' : '-'}limit: ${s.positionError.toFixed(2)} mm short`);
+          if (s.restarted) restarted++;
+          n++;
+        }
+      }
+    }
+  }
+  console.log(`  ${n} pinned starts, ${restarted} needed a restart`);
+});
