@@ -7,7 +7,8 @@ const canvas = $('view');
 const fmt = (v, d = 1) => (v < 0 ? '−' : ' ') + Math.abs(v).toFixed(d);
 
 async function fetchBuffer(name) {
-  const res = await fetch(new URL(`data/${name}`, document.baseURI));
+  // BASE_URL is the folder the build is served from ('./' unless built with --base).
+  const res = await fetch(new URL(`${import.meta.env.BASE_URL}data/${name}`, document.baseURI));
   if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
   return res.arrayBuffer();
 }
